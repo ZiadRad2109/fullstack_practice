@@ -1,59 +1,168 @@
-import { useState } from 'react'
-import AddNew from './AddNew'
-import Filter from './Filter'
+// Import React Hooks: 'useState' for component state management, 'useEffect' for handling side-effects (like API calls)
+import { useEffect, useState } from 'react'
 
+// Import custom child components
+import AddNew from './AddNew' // Form component for adding a new contact
+import Filter from './Filter' // Search input component for filtering contacts
+
+// Import the backend service module containing axios API methods (getAll, create, update, removeContact)
+import newContact from './services/bkend.js'
+
+// Main Application Component
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Ziad Hisham', number: '01011110022' }
-  ])
+  // 'persons' holds the complete, master list of contacts fetched from the database
+  const [persons, setPersons] = useState([])
+
+  // 'filteredPersons' holds the list of contacts currently displayed to the user (can be filtered)
   const [filteredPersons, setFilteredPersons] = useState(persons)
+
+  // 'newName' tracks the value typed into the name input field (controlled component)
   const [newName, setNewName] = useState('')
+
+  // 'newNumber' tracks the value typed into the phone number input field (controlled component)
   const [newNumber, setNewNumber] = useState('')
+
+  // 'filterName' tracks the search term entered into the search filter input field
   const [filterName, setFilterName] = useState('')
 
+  // useEffect executes side effects. The empty dependency array '[]' ensures this runs ONLY ONCE when the component mounts
+  useEffect(() => {
+    // Fetch all existing contacts from the JSON backend server
+    newContact.getAll().then(contact => {
+      // Initialize both state arrays with the fetched data
+      setPersons(contact)
+      setFilteredPersons(contact)
+    })
+  }, [])
+
+  // Event handler for the search filter input field
   const handleFilterNameChange = (event) => {
+    // 'event.target.value' captures whatever the user types and updates 'filterName' state
     setFilterName(event.target.value)
   }
+
+  // Event handler for the name input field in the Add form
   const handleNameChange = (event) => {
+    // Updates 'newName' state as the user types
     setNewName(event.target.value)
   }
+
+  // Event handler for the phone number input field in the Add form
   const handleNumberChange = (event) => {
+    // Updates 'newNumber' state as the user types
     setNewNumber(event.target.value)
   }
+
+  // Function called when the user submits the "Add a new contact" form
   const addName = (event) => {
+    // Prevents the default browser action of refreshing the whole page on form submit
     event.preventDefault()
-    if (persons.some(person => person.name === newName)) {
-      alert(`${newName} is already in the list`)
+
+    // Construct a new contact object from the current input values
+    const newPerson = { name: newName, number: newNumber }
+
+    // Check if a contact with the entered name already exists in the phonebook
+    if (filteredPersons.some(person => person.name === newName)) {
+      // Notify the user that the contact will be updated
+      alert(`${newName} is updated`)
+
+      // Find the existing person object from the list to get its unique database 'id'
+      const id = filteredPersons.find((person) => person.name === newName).id
+      const personObject = filteredPersons.find(person => person.name === newName)
+
+      // Create an updated object by keeping the existing properties (including id) and replacing 'number'
+      const updatedPerson = { ...personObject, number: newNumber }
+
+      // Send an HTTP PUT request to update the record in the backend server
+      newContact.update(id, updatedPerson).then(() => {
+        // Update local state by replacing only the modified contact in the arrays
+        setPersons(persons.map((person) => person.id === id ? updatedPerson : person))
+        setFilteredPersons(filteredPersons.map((person) => person.id === id ? updatedPerson : person))
+
+        // Reset the form input fields back to empty strings
+        setNewName('')
+        setNewNumber('')
+      }).catch(error => {
+        // Log an error message to the console if the API request fails
+        console.log('error occured', error)
+      })
+
+      // Exit early so we do not proceed to create a duplicate contact below
       return
     }
-    setPersons(persons.concat({ name: newName, number: newNumber }))
-    setFilteredPersons(persons.concat({ name: newName, number: newNumber }))
-    setNewName('')
-    setNewNumber('')
+
+    // If the contact does not already exist, send an HTTP POST request to create it in the database
+    newContact.create(newPerson).then(contact => {
+      // 'contact' is the newly created object returned from the server (which includes the server-assigned 'id')
+      // Append the new contact to the existing arrays using .concat() (immutable update)
+      setPersons(persons.concat(contact))
+      setFilteredPersons(filteredPersons.concat(contact))
+
+      // Clear the form inputs
+      setNewName('')
+      setNewNumber('')
+    }).catch(error => console.log('error occured', error))
   }
+
+  // Function called when the user submits the search filter form
   const filterByName = (event) => {
+    // Prevent the default form reload behavior
     event.preventDefault()
+
+    // If search term is not empty, filter the list by matching names
     if (filterName.length > 0) {
-      setFilteredPersons(persons.filter(person => person.name === filterName))
-    }
-    else {
+      setFilteredPersons(filteredPersons.filter(person => person.name === filterName))
+    } else {
+      // If search input is cleared, restore the full list
       setFilteredPersons(persons)
     }
-
   }
 
+  // Function to delete a contact by ID
+  const deleteContact = (id) => {
+    // Send an HTTP DELETE request to the backend server for this specific contact ID
+    newContact.removeContact(id).then(() => {
+      // Filter out the deleted contact from local state so the UI updates immediately
+      setPersons(persons.filter((person) => person.id !== id))
+      setFilteredPersons(filteredPersons.filter((person) => person.id !== id))
+    })
+  }
+
+  // Render the User Interface (JSX)
   return (
     <div>
       <h1>Phonebook</h1>
-      <Filter filterName={filterName} handleFilterNameChange={handleFilterNameChange} filterByName={filterByName} />
 
-
+      {/* Filter component: receives current search term and event handlers as props */}
+      <Filter
+        filterName={filterName}
+        handleFilterNameChange={handleFilterNameChange}
+        filterByName={filterByName}
+      />
 
       <h2>Add a new contact</h2>
-      <AddNew newName={newName} handleNameChange={handleNameChange} newNumber={newNumber} handleNumberChange={handleNumberChange} addName={addName} />
+      {/* AddNew component: receives input states, change handlers, and form submission handler as props */}
+      <AddNew
+        newName={newName}
+        handleNameChange={handleNameChange}
+        newNumber={newNumber}
+        handleNumberChange={handleNumberChange}
+        addName={addName}
+      />
+
       <h2>Numbers</h2>
       <ul>
-        {filteredPersons.map(person => <li key={person.name}>{person.name} {person.number}</li>)}
+        {
+          /* Map each contact in filteredPersons to an <li> list item */
+          filteredPersons.map(person => (
+            // 'key' is required by React to uniquely identify list elements across re-renders
+            <li key={person.id}>
+              {person.name} {person.number}
+              {/* Wrapped in an arrow function so deleteContact is ONLY called when clicked, not during render */}
+              <button onClick={() => deleteContact(person.id)}>delete</button>
+            </li>
+          ))
+        }
       </ul>
     </div>
   )
