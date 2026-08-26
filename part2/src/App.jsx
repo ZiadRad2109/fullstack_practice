@@ -8,6 +8,8 @@ import Filter from './Filter' // Search input component for filtering contacts
 // Import the backend service module containing axios API methods (getAll, create, update, removeContact)
 import newContact from './services/bkend.js'
 
+import Notification from './Notification'
+
 // Main Application Component
 const App = () => {
   // 'persons' holds the complete, master list of contacts fetched from the database
@@ -24,6 +26,8 @@ const App = () => {
 
   // 'filterName' tracks the search term entered into the search filter input field
   const [filterName, setFilterName] = useState('')
+
+  const [notfMessage, setNotfMessage] = useState(null)
 
   // useEffect executes side effects. The empty dependency array '[]' ensures this runs ONLY ONCE when the component mounts
   useEffect(() => {
@@ -64,12 +68,15 @@ const App = () => {
     // Check if a contact with the entered name already exists in the phonebook
     if (filteredPersons.some(person => person.name === newName)) {
       // Notify the user that the contact will be updated
-      alert(`${newName} is updated`)
+      // alert(`${newName} is updated`)
+      setNotfMessage(`${newName} is updated`)
+      setTimeout(() => {
+        setNotfMessage(null)
+      }, 5000);
 
       // Find the existing person object from the list to get its unique database 'id'
-      const id = filteredPersons.find((person) => person.name === newName).id
       const personObject = filteredPersons.find(person => person.name === newName)
-
+      const id = personObject.id
       // Create an updated object by keeping the existing properties (including id) and replacing 'number'
       const updatedPerson = { ...personObject, number: newNumber }
 
@@ -97,7 +104,10 @@ const App = () => {
       // Append the new contact to the existing arrays using .concat() (immutable update)
       setPersons(persons.concat(contact))
       setFilteredPersons(filteredPersons.concat(contact))
-
+      setNotfMessage(`${contact.name} is added successfully`)
+      setTimeout(() => {
+        setNotfMessage(null)
+      }, 5000);
       // Clear the form inputs
       setNewName('')
       setNewNumber('')
@@ -125,6 +135,11 @@ const App = () => {
       // Filter out the deleted contact from local state so the UI updates immediately
       setPersons(persons.filter((person) => person.id !== id))
       setFilteredPersons(filteredPersons.filter((person) => person.id !== id))
+
+      setNotfMessage(`Contact Deleted`)
+      setTimeout(() => {
+        setNotfMessage(null)
+      }, 5000);
     })
   }
 
@@ -132,7 +147,7 @@ const App = () => {
   return (
     <div>
       <h1>Phonebook</h1>
-
+      <Notification message={notfMessage} />
       {/* Filter component: receives current search term and event handlers as props */}
       <Filter
         filterName={filterName}
