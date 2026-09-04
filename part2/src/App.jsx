@@ -103,7 +103,9 @@ const App = () => {
       // 'contact' is the newly created object returned from the server (which includes the server-assigned 'id')
       // Append the new contact to the existing arrays using .concat() (immutable update)
       setPersons(persons.concat(contact))
-      setFilteredPersons(filteredPersons.concat(contact))
+
+      const newFilteredPerson = [...filteredPersons, contact]
+      setFilteredPersons(newFilteredPerson)
       setNotfMessage(`${contact.name} is added successfully`)
       setTimeout(() => {
         setNotfMessage(null)
@@ -111,7 +113,13 @@ const App = () => {
       // Clear the form inputs
       setNewName('')
       setNewNumber('')
-    }).catch(error => console.log('error occured', error))
+    }).catch(error => {
+      console.log(error.response.data.error)
+      setNotfMessage(error.response.data.error)
+            setTimeout(() => {
+        setNotfMessage(null)
+      }, 5000);
+    })
   }
 
   // Function called when the user submits the search filter form
